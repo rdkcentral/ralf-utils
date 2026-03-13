@@ -1,0 +1,47 @@
+/*
+ * If not stated otherwise in this file or this component's LICENSE file the
+ * following copyright and licenses apply:
+ *
+ * Copyright 2025 Comcast Cable Communications Management, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#pragma once
+
+#include "core/IPackageMountImpl.h"
+
+#include <gmock/gmock.h>
+
+namespace LIBRALF_NS
+{
+
+    class MockPackageMountImpl : public IPackageMountImpl
+    {
+    public:
+        MOCK_METHOD(bool, isMounted, (), (const, override));
+
+        MOCK_METHOD(std::filesystem::path, mountPoint, (), (const, override));
+
+        MOCK_METHOD(void, unmount, (), (override));
+
+        MOCK_METHOD(void, detach, (), (override));
+
+        MOCK_METHOD(std::string, volumeName, (), (const, override));
+
+        MOCK_METHOD(std::string, volumeUuid, (), (const, override));
+
+        MOCK_METHOD(MountStatus, status, (), (const, override));
+    };
+
+} // namespace LIBRALF_NS

@@ -1,0 +1,55 @@
+# If not stated otherwise in this file or this component's LICENSE file the
+# following copyright and licenses apply:
+#
+# Copyright 2025 Comcast Cable Communications Management, LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+cmake_minimum_required(VERSION 3.19)
+
+@PACKAGE_INIT@
+
+set_and_check(libralf_INCLUDE_DIR    "@PACKAGE_INCLUDE_INSTALL_DIR@")
+set_and_check(libralf_LIBRARIES_DIR  "@PACKAGE_LIB_INSTALL_DIR@")
+
+set(libralf_COMPONENTS STATIC SHARED)
+set(libralf_COMPONENT_STATIC NO)
+set(libralf_COMPONENT_SHARED NO)
+foreach (libralf_COMPONENT IN LISTS ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)
+    string(TOUPPER "${libralf_COMPONENT}" libralf_COMPONENT)
+    if (libralf_COMPONENT IN_LIST libralf_COMPONENTS)
+        set(libralf_COMPONENT_${libralf_COMPONENT} YES)
+    else ()
+        set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
+            "libralf does not recognize component `${libralf_COMPONENT}`.")
+        set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
+        return()
+    endif ()
+endforeach ()
+
+if (libralf_COMPONENT_STATIC AND libralf_COMPONENT_SHARED)
+    set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
+        "libralf `static` and `shared` components are mutually exclusive.")
+    set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
+    return()
+endif ()
+
+if (NOT libralf_COMPONENT_STATIC AND NOT libralf_COMPONENT_SHARED)
+    set(libralf_COMPONENT_SHARED YES)
+endif ()
+
+if (libralf_COMPONENT_STATIC)
+    include("${CMAKE_CURRENT_LIST_DIR}/libralfStaticTarget.cmake")
+else ()
+    include("${CMAKE_CURRENT_LIST_DIR}/libralfTarget.cmake")
+endif ()

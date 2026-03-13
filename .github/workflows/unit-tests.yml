@@ -1,0 +1,136 @@
+#
+# If not stated otherwise in this file or this component's LICENSE file the
+# following copyright and licenses apply:
+#
+# Copyright 2025 Comcast Cable Communications Management, LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This workflow runs unit tests and generates code coverage reports.
+
+name: unit-tests
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  # Builds the unit tests and runs them
+  run-unit-tests:
+    name: Run unit-tests
+    # Runs on ubuntu
+    runs-on: ubuntu-latest
+    # Timeout after
+    timeout-minutes: 10
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout repo
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+          fetch-depth: 2
+
+      # Set up GH_TOKEN for authentication
+      - name: Set up GitHub CLI token
+        run: echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install cmake openssl libssl-dev libxml2-dev libarchive-dev lcov jq ccache -y
+
+      # Set up ccache
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2.14
+        with:
+          key: ${{ github.job }}-${{ matrix.os || 'ubuntu-latest' }}
+          max-size: 500M
+
+      # Build the unit tests
+      - name: Build unit tests
+        run: |
+          mkdir build
+          cmake \
+            -DCMAKE_BUILD_TYPE=Coverage \
+            -DCMAKE_CXX_FLAGS="--coverage" \
+            -DCMAKE_C_FLAGS="--coverage" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DRALF_UTILS_BUILD_UNIT_TESTS:BOOL=ON \
+            -DRALF_UTILS_ENABLE_ADDRESS_SANITIZER=ON \
+            -DRALF_UTILS_ENABLE_UNDEFINED_BEHAVIOUR_SANITIZER=ON \
+            -S . -B build
+          cmake --build build
+
+      # Run the unit tests
+      - name: Run unit tests
+        run: |
+          ctest --test-dir build/test --output-on-failure --output-junit unit_test_reports.xml
+
+      - name: Generate code coverage report
+        run: |
+          cd build
+          lcov --rc geninfo_unexecuted_blocks=1 --capture --directory . --output-file coverage.info --ignore-errors mismatch
+          lcov --remove coverage.info '/usr/*' --output-file coverage.info
+          lcov --extract coverage.info '**/lib/*' --output-file coverage.info
+          lcov --list coverage.info
+
+      - name: Upload base coverage artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: base-coverage
+          path: build/coverage.info
+
+      - name: Generate HTML coverage report
+        run: |
+          mkdir -p build/coverage_html
+          genhtml build/coverage.info --output-directory build/coverage_html --quiet
+          COVERAGE_PERCENT=$(lcov --summary build/coverage.info | grep lines | awk '{ print $2 }')
+          echo "COVERAGE_PERCENT=$COVERAGE_PERCENT" >> $GITHUB_ENV
+
+      - name: Upload test results
+        uses: dorny/test-reporter@v2.1.1
+        if: failure()
+        with:
+          name: Unit test failures
+          path: build/test/unit_test_reports.xml
+          reporter: java-junit
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/coverage_html
+
+      - name: Comment coverage summary on PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            **Code Coverage Report**
+            Lines covered: **${{ env.COVERAGE_PERCENT }}**
+            [⬇️ Download full HTML coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})

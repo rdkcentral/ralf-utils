@@ -1,0 +1,64 @@
+#
+# If not stated otherwise in this file or this component's LICENSE file the
+# following copyright and licenses apply:
+#
+# Copyright 2025 Comcast Cable Communications Management, LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This workflow runs clang-tidy on the code, which checks various c++ rules
+# satisfied. This workflow shall fail if any code falls foul of the clang-tidy
+# rules. Logs are uploaded on failure.
+
+name: clang-tidy
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  # This runs the clang-tidy program and processes the results
+  run-clang-tidy:
+    name: Run clang-tidy
+    # Runs on ubuntu
+    runs-on: ubuntu-latest
+    # Timeout after
+    timeout-minutes: 25
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      # Install dependencies
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install cmake openssl libssl-dev libarchive-dev libxml2-dev clang-tidy-15 -y
+
+      # Run cmake and then run the clang-tidy over the code
+      - name: run cmake
+        run: |
+          mkdir build
+          cmake -DRALF_UTILS_BUILD_UNIT_TESTS:BOOL=ON -DRALF_UTILS_CLANG_TIDY:BOOL=ON -S . -B build
+          cmake --build build

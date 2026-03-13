@@ -1,0 +1,96 @@
+#
+# If not stated otherwise in this file or this component's LICENSE file the
+# following copyright and licenses apply:
+#
+# Copyright 2025 Comcast Cable Communications Management, LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This workflow runs clang-format on the code, which checks that the formatting is
+# correct. This workflow shall fail if any code has been changed by clang-format. Logs
+# are uploaded on failure.
+
+name: clang-format
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  # This runs the clang-format program and processes the results
+  run-clang-format:
+    name: Run clang-format
+    # Runs on ubuntu
+    runs-on: ubuntu-latest
+    # Timeout after
+    timeout-minutes: 5
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      # Setup github for python 3.12
+      - name: setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install clang-format-15
+
+      # Run clang-format over all files
+      - name: Run clang-format
+        run: |
+          find . -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -not -path './thirdparty/*' -exec clang-format-15 -style=file -n --Werror {} \; &> clang-format_errors.log
+
+      # Process the clang-format errors and generate a junit xml file
+      # Generate a failure if errors detected
+      - name: Process clang-format results
+        id: create-clang-format-xml
+        if: failure() || success()
+        run: python ci/clang-format/process_clang-format_errors.py
+
+      # Report the errors on failure using the xml file
+      - name: Check results
+        uses: dorny/test-reporter@v2.1.1
+        if: failure()
+        with:
+          name: Clang-format errors
+          path: clang-format_errors.xml
+          reporter: java-junit
+
+      # Upload logs on failure
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: logs
+          path: |
+            clang-format_errors.log
+            clang-format_errors.xml
+

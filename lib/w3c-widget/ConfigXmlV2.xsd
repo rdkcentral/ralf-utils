@@ -1,0 +1,174 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.bskyb.com/ns/widgets"
+           xmlns="http://www.bskyb.com/ns/widgets" elementFormDefault="qualified">
+    <!-- type to restrict mime type for icons -->
+    <xs:simpleType name="imageMime">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="image/png"/>
+            <xs:enumeration value="image/jpeg"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- type to restrict version numbers of packages -->
+    <xs:simpleType name="version">
+        <xs:restriction base="xs:token">
+            <xs:pattern value="([0-9]+)(\.[0-9]+){0,3}"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- type to restrict version string of packages -->
+    <xs:simpleType name="nonEmptyString">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- type for appId.  based on RFC 1123, xs:NCName is almost correct -->
+    <xs:simpleType name="appid">
+        <xs:restriction base="xs:token">
+            <xs:pattern
+                    value="(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-_]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-_]*[A-Za-z0-9])"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- type for src attributes to prevent zero length -->
+    <xs:simpleType name="src">
+        <xs:restriction base="xs:anyURI">
+            <xs:minLength value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- widget document -->
+    <xs:element name="widget">
+        <xs:complexType>
+
+            <xs:sequence>
+
+                <xs:element name="name">
+                    <xs:complexType>
+                        <xs:simpleContent>
+                            <xs:extension base="xs:string">
+                                <xs:attribute name="short" type="appid" use="required"/>
+                                <xs:attribute name="version" type="nonEmptyString" use="required"/>
+                            </xs:extension>
+                        </xs:simpleContent>
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="synopsis" type="xs:string" minOccurs="0"/>
+
+                <xs:element name="icon" maxOccurs="32" minOccurs="0">
+                    <xs:complexType>
+                        <xs:attribute name="src" type="src" use="required"/>
+                        <xs:attribute name="type" type="imageMime" use="required"/>
+                        <xs:attribute name="usage" type="xs:string" use="optional"/>
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="content">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="platformFilters" maxOccurs="1" minOccurs="0">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="platformId" maxOccurs="unbounded" minOccurs="0">
+                                            <xs:complexType>
+                                                <xs:simpleContent>
+                                                    <xs:extension base="xs:string">
+                                                        <xs:attribute type="xs:string" name="name" use="optional"/>
+                                                    </xs:extension>
+                                                </xs:simpleContent>
+                                            </xs:complexType>
+                                        </xs:element>
+                                        <xs:element name="platformVariant" maxOccurs="unbounded" minOccurs="0">
+                                            <xs:complexType>
+                                                <xs:simpleContent>
+                                                    <xs:extension base="xs:string">
+                                                        <xs:attribute type="xs:string" name="name" use="optional"/>
+                                                    </xs:extension>
+                                                </xs:simpleContent>
+                                            </xs:complexType>
+                                        </xs:element>
+                                        <xs:element name="region" maxOccurs="unbounded" minOccurs="0">
+                                            <xs:complexType>
+                                                <xs:simpleContent>
+                                                    <xs:extension base="xs:string">
+                                                        <xs:attribute type="xs:string" name="name" use="optional"/>
+                                                    </xs:extension>
+                                                </xs:simpleContent>
+                                            </xs:complexType>
+                                        </xs:element>
+                                        <xs:element name="proposition" maxOccurs="unbounded" minOccurs="0">
+                                            <xs:complexType>
+                                                <xs:simpleContent>
+                                                    <xs:extension base="xs:string">
+                                                        <xs:attribute type="xs:string" name="name" use="optional"/>
+                                                    </xs:extension>
+                                                </xs:simpleContent>
+                                            </xs:complexType>
+                                        </xs:element>
+                                        <xs:element name="country" maxOccurs="unbounded" minOccurs="0">
+                                            <xs:complexType>
+                                                <xs:simpleContent>
+                                                    <xs:extension base="xs:string">
+                                                        <xs:attribute type="xs:string" name="name" use="optional"/>
+                                                    </xs:extension>
+                                                </xs:simpleContent>
+                                            </xs:complexType>
+                                        </xs:element>
+                                        <xs:element name="subdivision" maxOccurs="unbounded" minOccurs="0">
+                                            <xs:complexType>
+                                                <xs:simpleContent>
+                                                    <xs:extension base="xs:string">
+                                                        <xs:attribute type="xs:string" name="name" use="optional"/>
+                                                    </xs:extension>
+                                                </xs:simpleContent>
+                                            </xs:complexType>
+                                        </xs:element>
+                                        <xs:element name="yoctoVersion" maxOccurs="unbounded" minOccurs="0">
+                                            <xs:complexType>
+                                                <xs:simpleContent>
+                                                    <xs:extension base="xs:string">
+                                                        <xs:attribute type="xs:string" name="name" use="optional"/>
+                                                    </xs:extension>
+                                                </xs:simpleContent>
+                                            </xs:complexType>
+                                        </xs:element>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                        <xs:attribute type="nonEmptyString" name="src"/>
+                        <xs:attribute type="nonEmptyString" name="type"/>
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="capabilities">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="capability" minOccurs="0" maxOccurs="96">
+                                <xs:complexType>
+                                    <xs:simpleContent>
+                                        <xs:extension base="xs:string">
+                                            <xs:attribute name="name" type="xs:string" use="required"/>
+                                        </xs:extension>
+                                    </xs:simpleContent>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="platformVersionFrom" type="version" minOccurs="0"/>
+
+                <xs:element name="parentalControl" type="xs:boolean" minOccurs="0"/>
+
+            </xs:sequence>
+
+            <!-- widget schema version, use different schema for different versions and match hard-->
+            <xs:attribute name="version" type="xs:string" use="required" fixed="2.0"/>
+
+        </xs:complexType>
+
+    </xs:element>
+</xs:schema>

@@ -1,0 +1,110 @@
+#
+# If not stated otherwise in this file or this component's LICENSE file the
+# following copyright and licenses apply:
+#
+# Copyright 2025 Comcast Cable Communications Management, LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This workflow is used to test that `make install` works correctly. By performing
+# a make / install, and building:
+#   a) A cmake test project
+#   b) An autotools test project
+#   c) A meson test project
+
+name: install-tests
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  # Builds the unit tests and runs them
+  run-install-tests:
+    name: Run install-tests
+    # Runs on ubuntu
+    runs-on: ubuntu-latest
+    # Timeout after
+    timeout-minutes: 5
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout repo
+        uses: actions/checkout@v4
+        with:
+          lfs: 'false'
+          fetch-depth: 2
+
+      # Set up GH_TOKEN for authentication
+      - name: Set up GitHub CLI token
+        run: echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install cmake meson autotools-dev autoconf libtool openssl libssl-dev libxml2-dev libarchive-dev liblz4-dev ccache -y
+
+      # Set up ccache
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2.14
+        with:
+          key: ${{ github.job }}-${{ matrix.os || 'ubuntu-latest' }}
+          max-size: 500M
+
+      # Build and install the library
+      - name: Build and install the library
+        run: |
+          mkdir build
+          cmake \
+            -DRALF_UTILS_BUILD_UNIT_TESTS:BOOL=OFF \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -S . -B build
+          cmake --build build
+          sudo cmake --install build
+
+      # Try and build the various projects that use the installed library
+      - name: Build Autotools project
+        run: |
+          cd $GITHUB_WORKSPACE/test/install/automake
+          libtoolize
+          aclocal
+          autoconf
+          automake --add-missing
+          ./configure
+          make
+
+      - name: Build Meson project
+        run: |
+          cd $GITHUB_WORKSPACE/test/install/meson
+          meson setup build
+          meson compile -C build
+
+      - name: Build CMake project
+        run: |
+          cd $GITHUB_WORKSPACE/test/install/cmake
+          mkdir build
+          cmake -S . -B build
+          cmake --build build

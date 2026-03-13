@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+    Strict xmldsig schema, it only allows a fixed set of algorithms:
+
+        CanonicalizationMethod === "http://www.w3.org/2006/12/xml-c14n11"
+        SignatureMethod === "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+        DigestMethod === "http://www.w3.org/2001/04/xmlenc#sha256"
+
+    The signer will need to use these algorithms to sign the package.
+-->
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+           targetNamespace="http://www.w3.org/2000/09/xmldsig#"
+           elementFormDefault="qualified">
+
+    <xs:element name="Signature" type="ds:SignatureType"/>
+    <xs:complexType name="SignatureType">
+        <xs:sequence>
+            <xs:element ref="ds:SignedInfo" maxOccurs="1" minOccurs="1"/>
+            <xs:element ref="ds:SignatureValue" maxOccurs="1" minOccurs="1"/>
+            <xs:element ref="ds:KeyInfo" maxOccurs="1" minOccurs="1"/>
+        </xs:sequence>
+        <xs:attribute name="Id" use="required">
+            <xs:simpleType>
+                <xs:restriction base="xs:string"/>
+            </xs:simpleType>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:element name="SignedInfo" type="ds:SignedInfoType"/>
+    <xs:complexType name="SignedInfoType">
+        <xs:sequence>
+            <xs:element ref="ds:CanonicalizationMethod" maxOccurs="1" minOccurs="1"/>
+            <xs:element ref="ds:SignatureMethod" maxOccurs="1" minOccurs="1"/>
+            <xs:element ref="ds:Reference" maxOccurs="32768" minOccurs="1"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:element name="SignatureValue" type="ds:SizeLimitedBase64BinaryType"/>
+    <xs:simpleType name="SizeLimitedBase64BinaryType">
+        <xs:restriction base="xs:base64Binary">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="65536"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+
+    <xs:element name="KeyInfo"/>
+    <xs:complexType name="KeyInfoType">
+        <xs:sequence>
+            <xs:element name="X509Data" maxOccurs="1" minOccurs="1">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="X509Certificate" type="ds:SizeLimitedBase64BinaryType" maxOccurs="20"
+                                    minOccurs="1"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:element name="CanonicalizationMethod" type="ds:CanonicalizationMethodType"/>
+    <xs:complexType name="CanonicalizationMethodType" mixed="true">
+        <xs:attribute name="Algorithm" type="xs:anyURI" use="required" fixed="http://www.w3.org/2006/12/xml-c14n11"/>
+    </xs:complexType>
+
+    <xs:element name="SignatureMethod" type="ds:SignatureMethodType"/>
+    <xs:complexType name="SignatureMethodType" mixed="true">
+        <xs:attribute name="Algorithm" use="required" fixed="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+    </xs:complexType>
+
+    <xs:element name="Reference" type="ds:ReferenceType"/>
+    <xs:complexType name="ReferenceType">
+        <xs:sequence>
+            <xs:element ref="ds:DigestMethod"/>
+            <xs:element ref="ds:DigestValue"/>
+        </xs:sequence>
+        <xs:attribute name="URI" use="required">
+            <xs:simpleType>
+                <xs:restriction base="xs:anyURI"/>
+            </xs:simpleType>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:element name="DigestMethod" type="ds:DigestMethodType"/>
+    <xs:complexType name="DigestMethodType" mixed="true">
+        <xs:attribute name="Algorithm" use="required" fixed="http://www.w3.org/2001/04/xmlenc#sha256"/>
+    </xs:complexType>
+
+    <xs:element name="DigestValue" type="ds:DigestValueType"/>
+    <xs:simpleType name="DigestValueType">
+        <xs:restriction base="xs:base64Binary"/>
+    </xs:simpleType>
+
+</xs:schema>
