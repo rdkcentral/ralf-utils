@@ -27,6 +27,7 @@ add_library(libralf-oci
         OCIErofsImageLayerReader.cpp
         OCIErofsImageEntry.cpp
         OCIPackageMetaDataImpl.cpp
+        OCIMappableFile.cpp
 )
 
 target_include_directories(libralf-oci

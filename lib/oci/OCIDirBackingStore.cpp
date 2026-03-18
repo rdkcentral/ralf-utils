@@ -18,6 +18,7 @@
  */
 
 #include "OCIDirBackingStore.h"
+#include "OCIMappableFile.h"
 
 #include "core/Compatibility.h"
 #include "core/LogMacros.h"
@@ -94,31 +95,32 @@ Result<std::vector<uint8_t>> OCIDirBackingStore::readFile(const std::filesystem:
         return Error(std::error_code(errno, std::system_category()), "Failed to open file");
 
     struct stat st = {};
-    if (fstat(fd, &st) < 0)
+    if ((fstat(fd, &st) < 0) || (st.st_size < 0))
     {
         close(fd);
         return Error(std::error_code(errno, std::system_category()), "Failed to stat file");
     }
 
-    if (st.st_size > static_cast<ssize_t>(maxSize))
+    const auto fileSize = static_cast<size_t>(st.st_size);
+    if (fileSize > maxSize)
     {
         close(fd);
         return Error(ErrorCode::PackageFileTooLarge, "File is too large");
     }
 
-    std::vector<uint8_t> buffer(st.st_size);
+    std::vector<uint8_t> buffer(fileSize);
 
-    ssize_t rd = 0;
-    while (rd < st.st_size)
+    size_t rd = 0;
+    while (rd < fileSize)
     {
-        ssize_t bytesRead = TEMP_FAILURE_RETRY(read(fd, buffer.data() + rd, st.st_size - rd));
+        ssize_t bytesRead = TEMP_FAILURE_RETRY(read(fd, buffer.data() + rd, fileSize - rd));
         if (bytesRead <= 0)
         {
             close(fd);
             return Error(std::error_code(errno, std::system_category()), "Failed to read file");
         }
 
-        rd += bytesRead;
+        rd += static_cast<size_t>(bytesRead);
     }
 
     close(fd);
@@ -149,7 +151,7 @@ Result<std::unique_ptr<IOCIFileReader>> OCIDirBackingStore::getFile(const std::f
     return std::make_unique<SimpleFileReader>(fd, st.st_size);
 }
 
-Result<IOCIBackingStore::MappableFile> OCIDirBackingStore::getMountableFile(const std::filesystem::path &path) const
+Result<std::unique_ptr<IOCIMappableFile>> OCIDirBackingStore::getMappableFile(const std::filesystem::path &path) const
 {
     std::filesystem::path fullPath = m_baseDir / path;
     if (!std::filesystem::exists(fullPath))
@@ -169,5 +171,5 @@ Result<IOCIBackingStore::MappableFile> OCIDirBackingStore::getMountableFile(cons
         return Error(std::error_code(errno, std::system_category()), "Failed to stat file");
     }
 
-    return MappableFile{ fd, 0, static_cast<uint64_t>(st.st_size) };
+    return std::make_unique<OCIMappableFile>(fd, 0, static_cast<uint64_t>(st.st_size));
 }

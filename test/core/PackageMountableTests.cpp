@@ -191,10 +191,11 @@ TEST(PackageMountableTest, canGetMappableImage)
 
         OCIPackage package(std::move(backingStore.value()), mockMounter, nullptr);
         ASSERT_TRUE(package.isValid());
-        ASSERT_TRUE(package.isMountable());
 
         if (test.expectMount)
         {
+            EXPECT_TRUE(package.isMountable());
+
             // Matcher to check the imageFd passed to mount() points to the same file as packageFd (even though the fd
             // numbers will be different)
             const testing::Matcher<int> areSameFileMatcher = AreSameFile(packageFd);
@@ -209,6 +210,8 @@ TEST(PackageMountableTest, canGetMappableImage)
         }
         else
         {
+            EXPECT_FALSE(package.isMountable());
+
             // And the mount call should fail
             auto result = package.mount(someMountPoint, someFlags);
             EXPECT_TRUE(result.isError()) << "mount succeeded when should have failed for " << test.path;

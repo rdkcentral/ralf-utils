@@ -807,13 +807,16 @@ bool OCIPackage::isMountable() const
     if (!m_backingStore->supportsMountableFiles())
         return false;
 
-    if (m_packageImageDescriptor->mediaType() == PACKAGE_IMAGE_MEDIA_TYPE_PACKAGE_CONTENT_EROFS)
-    {
-        // If the image layer is an EROFS image then we can mount it
-        return true;
-    }
+    // If the image layer is an EROFS image then we can mount it ...
+    if (m_packageImageDescriptor->mediaType() != PACKAGE_IMAGE_MEDIA_TYPE_PACKAGE_CONTENT_EROFS)
+        return false;
 
-    return false;
+    // ... as long as the image layer data is not compressed and aligned
+    static const std::filesystem::path blobsPath = "blobs/sha256";
+    auto imagePath = blobsPath / m_packageImageDescriptor->digest();
+
+    const auto mappableFile = m_backingStore->getMappableFile(imagePath);
+    return mappableFile && mappableFile.value()->isAligned();
 }
 
 ssize_t OCIPackage::size() const
@@ -1083,29 +1086,35 @@ Result<std::unique_ptr<IPackageMountImpl>> OCIPackage::mount(const std::filesyst
     // This will return a file descriptor, file offset and size of the given blob, such that it could be mounted
     // (or memmapped).  This is not always possible, for example if the backing store is a compressed archive or if
     // stored in an archive that stores the file in non-contiguous blocks, then it won't be mountable.
-    const auto mountableBlob = m_backingStore->getMountableFile(imagePath);
-    if (!mountableBlob)
+    auto result = m_backingStore->getMappableFile(imagePath);
+    if (!result)
     {
         return Error::format(ErrorCode::PackageMountInvalid, "Package image layer is not mountable due to %s",
-                             mountableBlob.error().what());
+                             result.error().what());
+    }
+
+    // Check the offset and size are aligned to the alignment boundary
+    auto mountableBlob = std::move(result.value());
+    if (!mountableBlob->isAligned())
+    {
+        return Error::format(ErrorCode::PackageContentsInvalid,
+                             "Package image layer entry is not aligned, cannot mount");
     }
 
     // Sanity check the mappable blob size matches what was reported in the descriptor
-    if (mountableBlob->size != m_packageImageDescriptor->size())
+    if (mountableBlob->size() != m_packageImageDescriptor->size())
     {
-        close(mountableBlob->fd);
         return Error(ErrorCode::PackageMountInvalid,
                      "Package image layer is not mountable - size of the blob does not match descriptor");
     }
 
     // Check that the dm-verity offset is within the bounds of the image
-    if ((mountableBlob->size < (MIN_EROFS_IMAGE_SIZE + MIN_DMVERITY_IMAGE_SIZE)) ||
-        (annotations->hashesOffset > (mountableBlob->size - MIN_DMVERITY_IMAGE_SIZE)))
+    if ((mountableBlob->size() < (MIN_EROFS_IMAGE_SIZE + MIN_DMVERITY_IMAGE_SIZE)) ||
+        (annotations->hashesOffset > (mountableBlob->size() - MIN_DMVERITY_IMAGE_SIZE)))
     {
         // If the size is too small then we can't mount it, so close the file descriptor and return an error
         // Note that the size check is to ensure that the dm-verity tree can fit in the image, so we can verify it
         // when mounting.
-        close(mountableBlob->fd);
         return Error(ErrorCode::PackageMountInvalid,
                      "Package image layer is not mountable - size of offset is invalid");
     }
@@ -1116,17 +1125,13 @@ Result<std::unique_ptr<IPackageMountImpl>> OCIPackage::mount(const std::filesyst
     //   - Size of the image in the file to mount
     //   - The optional dm-verity root hash, salt and offset
 
-    const IDmVerityMounter::FileRange dataRange = { mountableBlob->offset, annotations->hashesOffset };
-    const IDmVerityMounter::FileRange hashesRange = { mountableBlob->offset + annotations->hashesOffset,
-                                                      mountableBlob->size - annotations->hashesOffset };
+    const IDmVerityMounter::FileRange dataRange = { mountableBlob->offset(), annotations->hashesOffset };
+    const IDmVerityMounter::FileRange hashesRange = { mountableBlob->offset() + annotations->hashesOffset,
+                                                      mountableBlob->size() - annotations->hashesOffset };
 
-    auto mount = m_dmVerityMounter->mount(metaDataPtr->id(), IDmVerityMounter::FileSystemType::Erofs, mountableBlob->fd,
-                                          mountPoint, dataRange, hashesRange, annotations->rootHash, annotations->salt,
-                                          flags);
-
-    // Ensure we close the file descriptor
-    if (close(mountableBlob->fd) != 0)
-        logSysError(errno, "Failed to close file descriptor for package image layer");
+    auto mount = m_dmVerityMounter->mount(metaDataPtr->id(), IDmVerityMounter::FileSystemType::Erofs,
+                                          mountableBlob->fd(), mountPoint, dataRange, hashesRange,
+                                          annotations->rootHash, annotations->salt, flags);
 
     return mount;
 }
@@ -1245,7 +1250,7 @@ std::unique_ptr<IPackageReaderImpl> OCIPackage::createReader(Error *_Nullable er
         // This will return a file descriptor, file offset and size of the given blob, such that it could be randomly
         // accessed.  This is not always possible, for example if the backing store is a compressed archive or if
         // stored in an archive that stores the file in non-contiguous blocks, then it won't be mountable.
-        const auto mountableBlob = m_backingStore->getMountableFile(imagePath);
+        const auto mountableBlob = m_backingStore->getMappableFile(imagePath);
         if (!mountableBlob)
         {
             if (error)
@@ -1260,13 +1265,8 @@ std::unique_ptr<IPackageReaderImpl> OCIPackage::createReader(Error *_Nullable er
 
         // Create an EROFS image layer reader, this will read the files from the EROFS image and perform dm-verity
         // checks on all the data read from the image.
-        auto reader = std::make_unique<OCIErofsImageLayerReader>(mountableBlob.value(), annotations->hashesOffset,
-                                                                 annotations->rootHash);
-
-        if (close(mountableBlob->fd) != 0)
-            logSysError(errno, "Failed to close file descriptor for package image layer");
-
-        return reader;
+        return std::make_unique<OCIErofsImageLayerReader>(mountableBlob.value(), annotations->hashesOffset,
+                                                          annotations->rootHash);
     }
     else if (mediaType.find(PACKAGE_IMAGE_MEDIA_TYPE_PREFIX) == 0)
     {

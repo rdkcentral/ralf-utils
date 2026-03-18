@@ -239,3 +239,49 @@ TEST(PackageExtractionTest, modificationTimesPreserved)
         tempDir.removeContents();
     }
 }
+
+TEST(PackageExtractionTest, unalignedErofsImageExtraction)
+{
+    const std::list<std::filesystem::path> packages = {
+        // tarball with EROFS image
+        TEST_DATA_DIR "/ralf-144mb.tar",
+        // tarball with EROFS image but not aligned
+        TEST_DATA_DIR "/ralf-144mb-unaligned.tar",
+        // zip with EROFS image aligned and uncompressed
+        TEST_DATA_DIR "/ralf-144mb.zip",
+        // zip with EROFS image, unaligned
+        TEST_DATA_DIR "/ralf-144mb-unaligned-image.zip",
+    };
+
+    VerificationBundle bundle = createTestVerificationBundle();
+
+    for (const auto &packagePath : packages)
+    {
+        TempDirectory tempDir;
+        ASSERT_TRUE(std::filesystem::exists(tempDir.path()));
+
+        int testPackageFd = open(packagePath.c_str(), O_CLOEXEC | O_RDONLY);
+        ASSERT_GE(testPackageFd, 0) << "failed to open " << packagePath << " - " << strerror(errno);
+
+        auto package = Package::open(testPackageFd, bundle, Package::OpenFlags::None);
+        ASSERT_FALSE(package.isError()) << "failed to open " << packagePath << " due to " << package.error().what();
+
+        close(testPackageFd);
+
+        auto result = package->extractTo(tempDir.path());
+        EXPECT_TRUE(result) << "failed to extract package " << packagePath << " - " << result.error().what();
+
+        tempDir.removeContents();
+
+        auto reader = PackageReader::create(package.value());
+        ASSERT_FALSE(reader.hasError()) << "failed to create package reader for " << packagePath << " - "
+                                        << reader.error().what();
+
+        std::optional<PackageEntry> entry;
+        while ((entry = reader.next()))
+            ;
+
+        EXPECT_FALSE(reader.hasError()) << "failed to read package " << packagePath << " due to "
+                                        << reader.error().what();
+    }
+}
