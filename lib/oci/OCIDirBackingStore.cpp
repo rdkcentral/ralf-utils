@@ -108,7 +108,7 @@ Result<std::vector<uint8_t>> OCIDirBackingStore::readFile(const std::filesystem:
         return Error(ErrorCode::PackageFileTooLarge, "File is too large");
     }
 
-    std::vector<uint8_t> buffer(st.st_size);
+    std::vector<uint8_t> buffer(fileSize);
 
     size_t rd = 0;
     while (rd < fileSize)
