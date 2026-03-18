@@ -18,6 +18,7 @@
  */
 
 #include "OCIDirBackingStore.h"
+#include "OCIMappableFile.h"
 
 #include "core/Compatibility.h"
 #include "core/LogMacros.h"
@@ -149,7 +150,7 @@ Result<std::unique_ptr<IOCIFileReader>> OCIDirBackingStore::getFile(const std::f
     return std::make_unique<SimpleFileReader>(fd, st.st_size);
 }
 
-Result<IOCIBackingStore::MappableFile> OCIDirBackingStore::getMountableFile(const std::filesystem::path &path) const
+Result<std::unique_ptr<IOCIMappableFile>> OCIDirBackingStore::getMappableFile(const std::filesystem::path &path) const
 {
     std::filesystem::path fullPath = m_baseDir / path;
     if (!std::filesystem::exists(fullPath))
@@ -169,5 +170,5 @@ Result<IOCIBackingStore::MappableFile> OCIDirBackingStore::getMountableFile(cons
         return Error(std::error_code(errno, std::system_category()), "Failed to stat file");
     }
 
-    return MappableFile{ fd, 0, static_cast<uint64_t>(st.st_size) };
+    return std::make_unique<OCIMappableFile>(fd, 0, static_cast<uint64_t>(st.st_size));
 }

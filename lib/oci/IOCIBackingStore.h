@@ -38,6 +38,20 @@ public:
     virtual int64_t size() const = 0;
 };
 
+class IOCIMappableFile
+{
+public:
+    virtual ~IOCIMappableFile() = default;
+
+    virtual int fd() const = 0;
+
+    virtual uint64_t offset() const = 0;
+
+    virtual uint64_t size() const = 0;
+
+    virtual bool isAligned() const = 0;
+};
+
 class IOCIBackingStore
 {
 public:
@@ -51,12 +65,6 @@ public:
 
     virtual LIBRALF_NS::Result<std::unique_ptr<IOCIFileReader>> getFile(const std::filesystem::path &path) const = 0;
 
-    struct MappableFile
-    {
-        int fd = -1;
-        uint64_t offset = 0;
-        uint64_t size = 0;
-    };
-
-    virtual LIBRALF_NS::Result<MappableFile> getMountableFile(const std::filesystem::path &path) const = 0;
+    virtual LIBRALF_NS::Result<std::unique_ptr<IOCIMappableFile>>
+    getMappableFile(const std::filesystem::path &path) const = 0;
 };

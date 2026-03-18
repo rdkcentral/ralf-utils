@@ -48,7 +48,7 @@
 class OCIErofsImageLayerReader final : public LIBRALF_NS::IPackageReaderImpl
 {
 public:
-    OCIErofsImageLayerReader(const IOCIBackingStore::MappableFile &imageFile, uint64_t hashesOffset,
+    OCIErofsImageLayerReader(const std::unique_ptr<IOCIMappableFile> &imageFile, uint64_t hashesOffset,
                              const std::vector<uint8_t> &rootHash);
     ~OCIErofsImageLayerReader() final;
 

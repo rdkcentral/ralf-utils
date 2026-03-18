@@ -18,6 +18,7 @@
  */
 
 #include "OCIArchiveBackingStore.h"
+#include "OCIMappableFile.h"
 #include "core/CryptoDigestBuilder.h"
 #include "core/LogMacros.h"
 
@@ -368,15 +369,10 @@ Result<std::unique_ptr<IOCIFileReader>> OCIArchiveBackingStore::getFile(const st
     then it manually walks through the tar headers to find the data offset.
 
  */
-Result<IOCIBackingStore::MappableFile>
+Result<std::unique_ptr<IOCIMappableFile>>
 OCIArchiveBackingStore::getTarArchiveEntryMappableFile(const std::unique_ptr<LibarchiveFileReader> &archive,
                                                        archive_entry *const entry)
 {
-    // For now avoiding use of getpagesize() as it can return different values on different platforms, making it
-    // less useful if running this library on host systems.
-    // const int alignment = getpagesize();
-    const int alignment = 4096;
-
     // Get the file descriptor of the archive
     int archiveFd = archive->fd();
     if (archiveFd < 0)
@@ -445,18 +441,6 @@ OCIArchiveBackingStore::getTarArchiveEntryMappableFile(const std::unique_ptr<Lib
             if ((imageOffset + entrySize) > static_cast<uint64_t>(std::numeric_limits<off_t>::max()))
                 return Error(ErrorCode::PackageContentsInvalid, "Tar entry size out of bounds");
 
-            // Check the offset and size are aligned to the alignment boundary
-            if ((imageOffset % alignment) != 0)
-            {
-                return Error::format(ErrorCode::PackageContentsInvalid,
-                                     "Tar entry offset is not aligned (%d byte boundary)", alignment);
-            }
-            if ((entrySize % alignment) != 0)
-            {
-                return Error::format(ErrorCode::PackageContentsInvalid,
-                                     "Tar entry size is not aligned (%d byte boundary)", alignment);
-            }
-
             // Dup the file descriptor so we can return in the MappableFile object and the caller is responsible for
             // closing it.
             int duppedFd = fcntl(archiveFd, F_DUPFD_CLOEXEC, 3);
@@ -466,11 +450,7 @@ OCIArchiveBackingStore::getTarArchiveEntryMappableFile(const std::unique_ptr<Lib
             }
 
             // Regular file header, which means that the after the header there is a data block
-            MappableFile mappableFile;
-            mappableFile.fd = duppedFd;
-            mappableFile.offset = imageOffset;
-            mappableFile.size = entrySize;
-            return mappableFile;
+            return std::make_unique<OCIMappableFile>(duppedFd, imageOffset, entrySize);
         }
         else if ((header.fileType == 'x') || (header.fileType == 'g') || (header.fileType == 'K') ||
                  (header.fileType == 'L'))
@@ -504,15 +484,10 @@ OCIArchiveBackingStore::getTarArchiveEntryMappableFile(const std::unique_ptr<Lib
     and the data offset.
 
  */
-Result<IOCIBackingStore::MappableFile>
+Result<std::unique_ptr<IOCIMappableFile>>
 OCIArchiveBackingStore::getZipArchiveEntryMappableFile(const std::unique_ptr<LibarchiveFileReader> &archive,
                                                        archive_entry *const entry)
 {
-    // For now avoiding use of getpagesize() as it can return different values on different platforms, making it
-    // less useful if running this library on host systems.
-    // const int alignment = getpagesize();
-    const int alignment = 4096;
-
     // Get the file descriptor of the archive
     int archiveFd = archive->fd();
     if (archiveFd < 0)
@@ -603,18 +578,6 @@ OCIArchiveBackingStore::getZipArchiveEntryMappableFile(const std::unique_ptr<Lib
     if ((imageOffset + imageSize) > static_cast<uint64_t>(std::numeric_limits<off_t>::max()))
         return Error(ErrorCode::PackageContentsInvalid, "Zip entry size out of bounds");
 
-    // Check the offset and size are aligned to the alignment boundary
-    if ((imageOffset % alignment) != 0)
-    {
-        return Error::format(ErrorCode::PackageContentsInvalid, "Zip entry offset is not aligned (%d byte boundary)",
-                             alignment);
-    }
-    if ((imageSize % alignment) != 0)
-    {
-        return Error::format(ErrorCode::PackageContentsInvalid, "Zip entry size is not aligned (%d byte boundary)",
-                             alignment);
-    }
-
     // Dup the file descriptor so we can return in the MappableFile object and the caller is responsible for
     // closing it.
     int duppedFd = fcntl(archiveFd, F_DUPFD_CLOEXEC, 3);
@@ -624,14 +587,10 @@ OCIArchiveBackingStore::getZipArchiveEntryMappableFile(const std::unique_ptr<Lib
     }
 
     // Regular file header, which means that the after the header there is a data block
-    MappableFile mappableFile;
-    mappableFile.fd = duppedFd;
-    mappableFile.offset = imageOffset;
-    mappableFile.size = imageSize;
-    return mappableFile;
+    return std::make_unique<OCIMappableFile>(duppedFd, imageOffset, imageSize);
 }
 
-Result<IOCIBackingStore::MappableFile> OCIArchiveBackingStore::getMountableFile(const std::filesystem::path &path) const
+Result<std::unique_ptr<IOCIMappableFile>> OCIArchiveBackingStore::getMappableFile(const std::filesystem::path &path) const
 {
     // Clone the archive so don't mess with anyone else using it
     auto archive = m_archive->clone();

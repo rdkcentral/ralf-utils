@@ -50,7 +50,7 @@ public:
 
     LIBRALF_NS::Result<std::unique_ptr<IOCIFileReader>> getFile(const std::filesystem::path &path) const override;
 
-    LIBRALF_NS::Result<MappableFile> getMountableFile(const std::filesystem::path &path) const override;
+    LIBRALF_NS::Result<std::unique_ptr<IOCIMappableFile>> getMappableFile(const std::filesystem::path &path) const override;
 
 private:
     OCIArchiveBackingStore(std::unique_ptr<entos::ralf::archive::LibarchiveFileReader> &&archive, int64_t size,
@@ -62,11 +62,11 @@ private:
     readArchiveFileEntry(const std::unique_ptr<entos::ralf::archive::LibarchiveFileReader> &archive,
                          archive_entry *entry, int64_t maxSize);
 
-    static LIBRALF_NS::Result<IOCIBackingStore::MappableFile>
+    static LIBRALF_NS::Result<std::unique_ptr<IOCIMappableFile>>
     getTarArchiveEntryMappableFile(const std::unique_ptr<entos::ralf::archive::LibarchiveFileReader> &archive,
                                    archive_entry *entry);
 
-    static LIBRALF_NS::Result<IOCIBackingStore::MappableFile>
+    static LIBRALF_NS::Result<std::unique_ptr<IOCIMappableFile>>
     getZipArchiveEntryMappableFile(const std::unique_ptr<entos::ralf::archive::LibarchiveFileReader> &archive,
                                    archive_entry *entry);
 

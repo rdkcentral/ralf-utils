@@ -43,7 +43,7 @@ public:
 
     LIBRALF_NS::Result<std::unique_ptr<IOCIFileReader>> getFile(const std::filesystem::path &path) const override;
 
-    LIBRALF_NS::Result<MappableFile> getMountableFile(const std::filesystem::path &path) const override;
+    LIBRALF_NS::Result<std::unique_ptr<IOCIMappableFile>> getMappableFile(const std::filesystem::path &path) const override;
 
 private:
     const std::filesystem::path m_baseDir;

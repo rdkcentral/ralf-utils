@@ -93,35 +93,42 @@ private:
     read the contents of the EROFS image layer.
 
  */
-OCIErofsImageLayerReader::OCIErofsImageLayerReader(const IOCIBackingStore::MappableFile &imageFile,
+OCIErofsImageLayerReader::OCIErofsImageLayerReader(const std::unique_ptr<IOCIMappableFile> &imageFile,
                                                    uint64_t hashesOffset, const std::vector<uint8_t> &rootHash)
 {
+    // Sanity check the image file is valid
+    if (!imageFile)
+    {
+        setError(ErrorCode::PackageContentsInvalid, "EROFS image layer is missing or invalid");
+        return;
+    }
+
     // Sanity check the offsets and size of the image layer
-    if ((imageFile.size < MIN_EROFSLAYER_SIZE) || (imageFile.offset > SIZE_MAX) ||
-        ((imageFile.offset + imageFile.size) > SIZE_MAX))
+    if ((imageFile->size() < MIN_EROFSLAYER_SIZE) || (imageFile->offset() > SIZE_MAX) ||
+        ((imageFile->offset() + imageFile->size()) > SIZE_MAX))
     {
         setError(ErrorCode::PackageContentsInvalid,
                  "EROFS image layer is too small, must be at least %" PRIu64 " bytes", MIN_EROFSLAYER_SIZE);
         return;
     }
 
-    if (hashesOffset > (imageFile.size - BLOCK_SIZE))
+    if (hashesOffset > (imageFile->size() - BLOCK_SIZE))
     {
         setError(ErrorCode::PackageContentsInvalid,
                  "EROFS image layer hashes offset is invalid (offset:%" PRIu64 ", image size:%" PRIu64 ")",
-                 hashesOffset, imageFile.size);
+                 hashesOffset, imageFile->size());
         return;
     }
 
     const auto dataSize = static_cast<size_t>(hashesOffset);
 
-    const auto hashesSize = static_cast<size_t>(imageFile.size - hashesOffset);
-    hashesOffset += imageFile.offset;
+    const auto hashesSize = static_cast<size_t>(imageFile->size() - hashesOffset);
+    hashesOffset += imageFile->offset();
 
     // Create the dm-verity protected file object this will wrap all the reads from the image and perform dm-verity
     // checks on every block read from the image.
-    auto result = IDmVerityProtectedFile::open(imageFile.fd, static_cast<size_t>(imageFile.offset), dataSize,
-                                               imageFile.fd, static_cast<size_t>(hashesOffset), hashesSize, rootHash);
+    auto result = IDmVerityProtectedFile::open(imageFile->fd(), static_cast<size_t>(imageFile->offset()), dataSize,
+                                               imageFile->fd(), static_cast<size_t>(hashesOffset), hashesSize, rootHash);
     if (!result)
     {
         setError(result.error().code(), "Failed to open dm-verity protected file for EROFS image layer: %s",
