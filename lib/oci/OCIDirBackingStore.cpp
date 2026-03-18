@@ -95,13 +95,14 @@ Result<std::vector<uint8_t>> OCIDirBackingStore::readFile(const std::filesystem:
         return Error(std::error_code(errno, std::system_category()), "Failed to open file");
 
     struct stat st = {};
-    if (fstat(fd, &st) < 0)
+    if ((fstat(fd, &st) < 0) || (st.st_size < 0))
     {
         close(fd);
         return Error(std::error_code(errno, std::system_category()), "Failed to stat file");
     }
 
-    if (st.st_size > static_cast<ssize_t>(maxSize))
+    const auto fileSize = static_cast<size_t>(st.st_size);
+    if (fileSize > maxSize)
     {
         close(fd);
         return Error(ErrorCode::PackageFileTooLarge, "File is too large");
@@ -109,17 +110,17 @@ Result<std::vector<uint8_t>> OCIDirBackingStore::readFile(const std::filesystem:
 
     std::vector<uint8_t> buffer(st.st_size);
 
-    ssize_t rd = 0;
-    while (rd < st.st_size)
+    size_t rd = 0;
+    while (rd < fileSize)
     {
-        ssize_t bytesRead = TEMP_FAILURE_RETRY(read(fd, buffer.data() + rd, st.st_size - rd));
+        ssize_t bytesRead = TEMP_FAILURE_RETRY(read(fd, buffer.data() + rd, fileSize - rd));
         if (bytesRead <= 0)
         {
             close(fd);
             return Error(std::error_code(errno, std::system_category()), "Failed to read file");
         }
 
-        rd += bytesRead;
+        rd += static_cast<size_t>(bytesRead);
     }
 
     close(fd);
