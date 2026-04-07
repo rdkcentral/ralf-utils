@@ -171,7 +171,7 @@ std::string VersionNumber::toString() const
     else if (m_fieldsCount == 2)
         snprintf(buffer, sizeof(buffer), "%u.%u", m_fields[0], m_fields[1]);
     else if (m_fieldsCount == 3)
-        snprintf(buffer, sizeof(buffer), "%u.%u.%u", m_fields[0], m_fields[1], m_fields[2]);
+        snprintf(buffer, sizeof(buffer), "%u.%u.%u", m_fields[0], m_fields[2]);
     else if (m_fieldsCount == 4)
         snprintf(buffer, sizeof(buffer), "%u.%u.%u.%u", m_fields[0], m_fields[1], m_fields[2], m_fields[3]);
     else
