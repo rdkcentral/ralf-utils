@@ -124,7 +124,7 @@
     screen.  Overlays are typically popups or other UI elements that are
     drawn on top of the normal application UI.
     */
-#define OVERLAY_PERMISSION "urn:entos:permission:display-overlay"
+#define OVERLAY_PERMISSION "urn:rdk:permission:display-overlay"
 
 // -------------------------------------------------------------------------
 /*!
