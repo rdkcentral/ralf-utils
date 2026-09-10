@@ -489,6 +489,8 @@ bool OCIPackageMetaDataImpl::processLogLevelsConfig(const nlohmann::json &json)
             m_loggingLevels |= LoggingLevel::Info;
         else if (strcasecmp(levelStr.c_str(), "debug") == 0)
             m_loggingLevels |= LoggingLevel::Debug;
+        else if (strcasecmp(levelStr.c_str(), "default") == 0)
+            m_loggingLevels |= LoggingLevel::Default;
         else
             logWarning("Unknown logging level '%s' in package config JSON, ignoring", levelStr.c_str());
     }
