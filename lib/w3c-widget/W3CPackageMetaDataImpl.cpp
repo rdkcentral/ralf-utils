@@ -187,7 +187,7 @@ std::shared_ptr<W3CPackageMetaDataImpl> W3CPackageMetaDataImpl::fromConfigXml(co
     if ((impl->m_type == PackageType::Runtime) && !impl->m_runtimeType.empty())
     {
         SupportedApplicationType typeInfo;
-        typeInfo.type = std::string("application/") + impl->m_runtimeType;
+        typeInfo.type = impl->m_runtimeType;
         impl->m_supportedAppTypes.emplace_back(std::move(typeInfo));
     }
 
