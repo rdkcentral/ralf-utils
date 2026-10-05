@@ -752,6 +752,7 @@ bool W3CPackageMetaDataImpl::processCapability(W3CPackageMetaDataImpl *_Nonnull 
         { "https-mutual-authentication"sv, ENTOS_HTTPS_MTLS_AUTHENTICATION_PERMISSION },
         { "stb-entitlements"sv, ENTOS_ENTITLEMENT_INFO_PERMISSION },
         { "memory-intensive"sv, ENTOS_MEMORY_INTENSIVE_PERMISSION },
+        { "icrypto"sv, ENTOS_ICRYPTO_PERMISSION },
     };
 
     auto range = kPermissionMap.equal_range(name);
