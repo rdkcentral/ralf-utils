@@ -115,6 +115,10 @@ public:
 
     std::set<std::string> availAuxMetaData() const;
 
+    const std::vector<LIBRALF_NS::SupportedApplicationType> &supportedApplicationTypes() const final;
+
+    std::optional<std::string> specifier() const final;
+
 private:
     static bool processName(W3CPackageMetaDataImpl *_Nonnull metaData, const xmlNode *_Nonnull nameElement,
                             LIBRALF_NS::Error *_Nullable error);
@@ -206,4 +210,5 @@ private:
 
     std::map<std::string, LIBRALF_NS::JSON, std::less<>> m_vendorConfig;
     std::map<std::string, std::vector<uint8_t>, std::less<>> m_auxMetaDataFiles;
+    std::vector<LIBRALF_NS::SupportedApplicationType> m_supportedAppTypes;
 };
