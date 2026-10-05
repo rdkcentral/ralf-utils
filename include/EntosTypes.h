@@ -127,6 +127,13 @@
 
 // -------------------------------------------------------------------------
 /*!
+    Enable container accces to ICrypto service running on the device.
+
+ */
+#define ENTOS_ICRYPTO_PERMISSION "urn:entos:permission:icrypto"
+
+// -------------------------------------------------------------------------
+/*!
     \deprecated
 
     The platform filters for the package.  These are not used on the device
