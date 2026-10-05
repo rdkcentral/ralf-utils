@@ -127,7 +127,7 @@
 
 // -------------------------------------------------------------------------
 /*!
-    Enable container accces to ICrypto service running on the device.
+    Enable container access to ICrypto service running on the device.
 
  */
 #define ENTOS_ICRYPTO_PERMISSION "urn:entos:permission:icrypto"
