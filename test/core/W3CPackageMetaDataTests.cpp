@@ -129,6 +129,7 @@ TEST(PackageMetaDataTest, testPlatformFilters)
     EXPECT_EQ(test.versionName(), "10.0.39.99");
     EXPECT_EQ(test.title(), "TV Input");
     EXPECT_EQ(test.type(), PackageType::Application);
+    EXPECT_EQ(test.specifier(), "html");
     ASSERT_TRUE(test.applicationInfo().has_value());
     EXPECT_TRUE(test.applicationInfo()->permissions().get(INTERNET_PERMISSION));
 
@@ -244,6 +245,7 @@ TEST(PackageMetaDataTest, testAllConfigs)
     EXPECT_EQ(test.id(), "allconfigs");
     EXPECT_EQ(test.versionName(), "1.2.3.4");
     EXPECT_EQ(test.title(), " allconfigs ");
+    EXPECT_EQ(test.specifier(), "html");
     EXPECT_EQ(test.mimeType(), "application/html");
     EXPECT_EQ(test.entryPointPath(), "foo/html/index.html");
     EXPECT_TRUE(metaData->entryArgs().empty());

@@ -182,6 +182,15 @@ std::shared_ptr<W3CPackageMetaDataImpl> W3CPackageMetaDataImpl::fromConfigXml(co
         return nullptr;
     }
 
+    // Build the m_supportedAppTypes, however in W3C widget packages this doesn't have an explicit equivalent with the
+    // OCI meta-data, but if a runtime type we can fake something reassuming a supported application type.
+    if ((impl->m_type == PackageType::Runtime) && !impl->m_runtimeType.empty())
+    {
+        SupportedApplicationType typeInfo;
+        typeInfo.type = std::string("application/") + impl->m_runtimeType;
+        impl->m_supportedAppTypes.emplace_back(std::move(typeInfo));
+    }
+
     return impl;
 }
 
@@ -469,6 +478,7 @@ bool W3CPackageMetaDataImpl::processContentV1(W3CPackageMetaDataImpl *_Nonnull m
     else if (type.rfind("runtime/", 0) == 0)
     {
         metaData->m_type = PackageType::Runtime;
+        metaData->m_runtimeType = type.substr(8);
     }
     else
     {
@@ -1864,4 +1874,17 @@ std::set<std::string> W3CPackageMetaDataImpl::availAuxMetaData() const
     }
 
     return auxMetaData;
+}
+
+const std::vector<SupportedApplicationType> &W3CPackageMetaDataImpl::supportedApplicationTypes() const
+{
+    return m_supportedAppTypes;
+}
+
+std::optional<std::string> W3CPackageMetaDataImpl::specifier() const
+{
+    if (m_runtimeType.empty())
+        return std::nullopt;
+
+    return m_runtimeType;
 }

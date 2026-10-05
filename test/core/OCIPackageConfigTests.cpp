@@ -54,6 +54,7 @@ TEST(OCIPackageConfigTests, checkBasicParsing)
     EXPECT_EQ(config->versionName(), "1.2.3-beta");
     EXPECT_EQ(config->title(), "My Application");
     EXPECT_EQ(config->type(), PackageType::Application);
+    EXPECT_EQ(config->specifier(), "html");
     EXPECT_EQ(config->mimeType(), "application/html");
     EXPECT_EQ(config->entryPointPath(), "web/index.html");
     EXPECT_EQ(config->entryArgs().size(), 0);
@@ -287,5 +288,122 @@ TEST(OCIPackageConfigTests, checkOverridesParsing)
         EXPECT_EQ(metaData->overrides(Override::Application), R"({"setting1":"value1"})"_json);
         EXPECT_EQ(metaData->overrides(Override::Runtime), JSON());
         EXPECT_EQ(metaData->overrides(Override::Base), JSON());
+    }
+}
+
+TEST(OCIPackageConfigTests, checkRuntimeConfigParsing)
+{
+    const auto parse = [](const char *config)
+    {
+        return OCIPackageMetaDataImpl::fromConfigJson(
+            std::vector<uint8_t>(reinterpret_cast<const char *>(config),
+                                 reinterpret_cast<const char *>(config) + strlen(config)));
+    };
+
+    // Happy case - multiple types, with and without args
+    {
+        const auto result = parse(R"({
+            "id": "com.sky.myruntime",
+            "version": "1.2.3",
+            "packageType": "runtime",
+            "entryPoint": "/usr/bin/frazzle",
+            "configuration": {
+                "urn:rdk:config:runtime": {
+                    "supportedApplicationTypes": [
+                        { "type": "html", "args": { "userAgent": "RDK/WPE", "debug": true } },
+                        { "type": "lightning" }
+                    ]
+                }
+            }
+        })");
+        ASSERT_TRUE(result.hasValue()) << "Failed to parse json config - " << result.error().what();
+
+        const auto &types = result.value()->supportedApplicationTypes();
+        ASSERT_EQ(types.size(), 2);
+
+        EXPECT_EQ(types[0].type, "html");
+        ASSERT_TRUE(types[0].args.has_value());
+        const auto args = types[0].args->asObject();
+        EXPECT_EQ(args.at("userAgent").asString(), "RDK/WPE");
+        EXPECT_EQ(args.at("debug").asBool(), true);
+
+        EXPECT_EQ(types[1].type, "lightning");
+        EXPECT_FALSE(types[1].args.has_value());
+    }
+
+    // No runtime config present - empty list
+    {
+        const auto result = parse(R"({
+            "id": "com.sky.myruntime",
+            "version": "1.2.3",
+            "packageType": "runtime",
+            "entryPoint": "/usr/bin/frazzle"
+        })");
+        ASSERT_TRUE(result.hasValue()) << "Failed to parse json config - " << result.error().what();
+        EXPECT_TRUE(result.value()->supportedApplicationTypes().empty());
+    }
+
+    // Error case - runtime config is not an object
+    {
+        const auto result = parse(R"({
+            "id": "com.sky.myruntime",
+            "version": "1.2.3",
+            "packageType": "runtime",
+            "entryPoint": "/usr/bin/frazzle",
+            "configuration": { "urn:rdk:config:runtime": "not an object" }
+        })");
+        ASSERT_FALSE(result.hasValue());
+        EXPECT_EQ(result.error().code(), ErrorCode::PackageContentsInvalid);
+    }
+
+    // Error case - supportedApplicationTypes is not an array
+    {
+        const auto result = parse(R"({
+            "id": "com.sky.myruntime",
+            "version": "1.2.3",
+            "packageType": "runtime",
+            "entryPoint": "/usr/bin/frazzle",
+            "configuration": { "urn:rdk:config:runtime": { "supportedApplicationTypes": { "type": "html" } } }
+        })");
+        ASSERT_FALSE(result.hasValue());
+        EXPECT_EQ(result.error().code(), ErrorCode::PackageContentsInvalid);
+    }
+
+    // Error case - an entry is not an object
+    {
+        const auto result = parse(R"({
+            "id": "com.sky.myruntime",
+            "version": "1.2.3",
+            "packageType": "runtime",
+            "entryPoint": "/usr/bin/frazzle",
+            "configuration": { "urn:rdk:config:runtime": { "supportedApplicationTypes": [ "html" ] } }
+        })");
+        ASSERT_FALSE(result.hasValue());
+        EXPECT_EQ(result.error().code(), ErrorCode::PackageContentsInvalid);
+    }
+
+    // Entries without a valid type, or with non-object args, are ignored
+    {
+        const auto result = parse(R"({
+            "id": "com.sky.myruntime",
+            "version": "1.2.3",
+            "packageType": "runtime",
+            "entryPoint": "/usr/bin/frazzle",
+            "configuration": {
+                "urn:rdk:config:runtime": {
+                    "supportedApplicationTypes": [
+                        { "args": { "a": 1 } },
+                        { "type": 42 },
+                        { "type": "html", "args": "bad" }
+                    ]
+                }
+            }
+        })");
+        ASSERT_TRUE(result.hasValue()) << "Failed to parse json config - " << result.error().what();
+
+        const auto &types = result.value()->supportedApplicationTypes();
+        ASSERT_EQ(types.size(), 1);
+        EXPECT_EQ(types[0].type, "html");
+        EXPECT_FALSE(types[0].args.has_value());
     }
 }
