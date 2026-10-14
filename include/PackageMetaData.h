@@ -547,6 +547,23 @@ namespace LIBRALF_NS
 
     // -------------------------------------------------------------------------
     /*!
+        \struct SupportedApplicationType
+        \brief Supported application type reported by a runtime package.
+
+        The type string is a vendor defined string that describes the type of
+        application that the runtime supports.
+
+        args is an optional JSON object that contains additional arguments that
+        the runtime may require.
+     */
+    struct SupportedApplicationType
+    {
+        std::string type;
+        std::optional<JSON> args;
+    };
+
+    // -------------------------------------------------------------------------
+    /*!
         \class RuntimeInfo
         \brief The runtime information from the package meta data.
 
@@ -562,6 +579,19 @@ namespace LIBRALF_NS
 
         RuntimeInfo &operator=(const RuntimeInfo &other) = default;
         RuntimeInfo &operator=(RuntimeInfo &&other) noexcept = default;
+
+    public:
+        // -------------------------------------------------------------------------
+        /*!
+            Returns the optional "supportedApplicationTypes" of the runtime.  If
+            present this can be used to help determine the type of runtime that the
+            app requires to run.
+
+            If not present in the package metadata then an empty vector is returned.
+
+            \since 1.3.0
+         */
+        const std::vector<SupportedApplicationType> &supportedApplicationTypes() const;
 
     private:
         friend class PackageMetaData;
@@ -1031,6 +1061,22 @@ namespace LIBRALF_NS
             \since 1.0.5
          */
         JSON overrides(Override type) const;
+
+        // -------------------------------------------------------------------------
+        /*!
+            Returns the specifier string of the package if present.  Previously this
+            was only available via the mimeType() method, but now it's available
+            directly using this method.
+
+            The `packageSpecifier` string is an optional field in the package
+            metadata.
+
+            \note This is the same string value returned by
+            ApplicationAndServiceInfo::runtimeType() for applications and services.
+
+            \since 1.3.0
+         */
+        std::optional<std::string> specifier() const;
 
     protected:
         friend class Package;

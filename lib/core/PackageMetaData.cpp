@@ -227,6 +227,14 @@ JSON PackageMetaData::overrides(Override type) const
         return m_impl->overrides(type);
 }
 
+std::optional<std::string> PackageMetaData::specifier() const
+{
+    if (!m_impl)
+        return std::nullopt;
+    else
+        return m_impl->specifier();
+}
+
 ApplicationInfo::ApplicationInfo(std::shared_ptr<IPackageMetaDataImpl> impl)
     : ApplicationAndServiceInfo(std::move(impl))
 {
@@ -386,6 +394,15 @@ LoggingLevels ApplicationAndServiceInfo::loggingLevels() const
 RuntimeInfo::RuntimeInfo(std::shared_ptr<IPackageMetaDataImpl> impl)
     : m_impl(std::move(impl))
 {
+}
+
+const std::vector<SupportedApplicationType> &RuntimeInfo::supportedApplicationTypes() const
+{
+    static const std::vector<SupportedApplicationType> kEmptySupportedAppTypes;
+    if (!m_impl)
+        return kEmptySupportedAppTypes;
+    else
+        return m_impl->supportedApplicationTypes();
 }
 
 // NOLINTBEGIN(misc-no-recursion): Allow recursive JSON types

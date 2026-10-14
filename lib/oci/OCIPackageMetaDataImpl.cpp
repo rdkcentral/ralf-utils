@@ -393,6 +393,7 @@ bool OCIPackageMetaDataImpl::processConfiguration(const nlohmann::json &json)
         { ENTOS_DISPLAY_CONFIGURATION ""sv, &OCIPackageMetaDataImpl::processDisplayConfig },
         { ENTOS_AUDIO_CONFIGURATION ""sv, &OCIPackageMetaDataImpl::processAudioConfig },
         { "urn:rdk:config:overrides"sv, &OCIPackageMetaDataImpl::processOverridesConfig },
+        { "urn:rdk:config:runtime"sv, &OCIPackageMetaDataImpl::processRuntimeConfig },
     };
 
     for (const auto &[key, value] : json.items())
@@ -1074,6 +1075,89 @@ bool OCIPackageMetaDataImpl::processOverridesConfig(const nlohmann::json &json)
     return true;
 }
 
+// -------------------------------------------------------------------------
+/*!
+    \internal
+
+    Parse the runtime configuration which is a list of supported application
+    types and their arguments.
+
+    This is only valid for runtime packages, but we don't enforce that here,
+    we just parse the configuration and store it.
+
+    \code
+        "configuration": {
+            "urn:rdk:config:runtime": {
+                "supportedApplicationTypes": [
+                    {
+                        "type": "html",
+                        "args": {
+                            "userAgent": "RDK/WPE"
+                        }
+                    },
+                    {
+                        "type": "lightning",
+                        "args": {
+                            "userAgent": "RDK/Lightning"
+                        }
+                    }
+                ]
+            }
+        }
+    \endcode
+
+ */
+bool OCIPackageMetaDataImpl::processRuntimeConfig(const nlohmann::json &json)
+{
+    if (!json.is_object())
+        return false;
+
+    for (const auto &[key, value] : json.items())
+    {
+        if (key == "supportedApplicationTypes")
+        {
+            if (!value.is_array())
+                return false;
+
+            m_supportedAppTypes.clear();
+
+            for (const auto &appType : value)
+            {
+                if (!appType.is_object())
+                    return false;
+
+                SupportedApplicationType typeInfo = {};
+                for (const auto &[typeKey, typeValue] : appType.items())
+                {
+                    if ((typeKey == "type") && typeValue.is_string())
+                    {
+                        typeInfo.type = typeValue.get<std::string>();
+                    }
+                    else if ((typeKey == "args") && typeValue.is_object())
+                    {
+                        typeInfo.args = typeValue.get<JSON>();
+                    }
+                    else
+                    {
+                        logWarning("Unknown supported application type key '%s' in package config JSON", typeKey.c_str());
+                    }
+                }
+
+                if (!typeInfo.type.empty())
+                {
+                    m_supportedAppTypes.emplace_back(std::move(typeInfo));
+                }
+            }
+        }
+        else
+        {
+            logWarning("Unknown runtime configuration key '%s' in package config JSON", key.c_str());
+        }
+    }
+
+    return true;
+}
+
 OCIPackageMetaDataImpl::OCIPackageMetaDataImpl()
     : m_permissions(std::make_shared<PermissionsImpl>())
 {
@@ -1245,4 +1329,17 @@ JSON OCIPackageMetaDataImpl::overrides(Override type) const
         return it->second;
 
     return {};
+}
+
+const std::vector<SupportedApplicationType> &OCIPackageMetaDataImpl::supportedApplicationTypes() const
+{
+    return m_supportedAppTypes;
+}
+
+std::optional<std::string> OCIPackageMetaDataImpl::specifier() const
+{
+    if (m_specifier.empty())
+        return std::nullopt;
+
+    return m_specifier;
 }

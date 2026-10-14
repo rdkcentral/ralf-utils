@@ -101,6 +101,10 @@ public:
 
     LIBRALF_NS::JSON overrides(LIBRALF_NS::Override type) const final;
 
+    const std::vector<LIBRALF_NS::SupportedApplicationType> &supportedApplicationTypes() const final;
+
+    std::optional<std::string> specifier() const final;
+
 private:
     using ProcessFieldFunction = std::function<bool(OCIPackageMetaDataImpl *_Nullable, const nlohmann::json &json)>;
 
@@ -129,6 +133,7 @@ private:
     bool processDisplayConfig(const nlohmann::json &json);
     bool processAudioConfig(const nlohmann::json &json);
     bool processOverridesConfig(const nlohmann::json &json);
+    bool processRuntimeConfig(const nlohmann::json &json);
 
     static std::optional<uint64_t> parseMemorySize(const std::string &str);
 
@@ -164,4 +169,5 @@ private:
     std::optional<std::chrono::milliseconds> m_watchdogInterval;
     std::map<std::string, LIBRALF_NS::JSON, std::less<>> m_allConfigs;
     std::map<LIBRALF_NS::Override, LIBRALF_NS::JSON> m_overrides;
+    std::vector<LIBRALF_NS::SupportedApplicationType> m_supportedAppTypes;
 };

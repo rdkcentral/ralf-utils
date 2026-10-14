@@ -91,6 +91,10 @@ namespace LIBRALF_NS
         virtual std::set<std::string> vendorConfigKeys() const = 0;
 
         virtual JSON overrides(Override type) const = 0;
+
+        virtual const std::vector<SupportedApplicationType> &supportedApplicationTypes() const = 0;
+
+        virtual std::optional<std::string> specifier() const = 0;
     };
 
 } // namespace LIBRALF_NS
