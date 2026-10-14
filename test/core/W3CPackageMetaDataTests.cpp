@@ -230,6 +230,7 @@ TEST(PackageMetaDataTest, testAllConfigs)
         <capability name="chromecast"></capability>
         <capability name="age-policy">privacy:US:U13</capability>
         <capability name="intercept">true</capability>
+        <capability name="icrypto"></capability>
      </capabilities>
     <parentalControl>true</parentalControl>
 </widget>
@@ -274,6 +275,7 @@ TEST(PackageMetaDataTest, testAllConfigs)
     EXPECT_TRUE(test.applicationInfo()->permissions().get(ENTOS_AS_PLAYER_PERMISSION));
     EXPECT_TRUE(test.applicationInfo()->permissions().get(ENTOS_CHROMECAST_PERMISSION));
     EXPECT_TRUE(test.applicationInfo()->permissions().get(ENTOS_AIRPLAY_PERMISSION));
+    EXPECT_TRUE(test.applicationInfo()->permissions().get(ENTOS_ICRYPTO_PERMISSION));
 
     EXPECT_EQ(test.applicationInfo()->supportedLifecycleStates(),
               LifecycleStates::Paused | LifecycleStates::Suspended | LifecycleStates::Hibernated);

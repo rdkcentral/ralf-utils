@@ -58,6 +58,7 @@ static const std::map<std::string_view, std::string_view, std::less<>> kConfigXm
     { ENTOS_ENTITLEMENT_INFO_PERMISSION ""sv, "stb-entitlements"sv },
     { ENTOS_TIME_SHIFT_BUFFER_PERMISSION ""sv, "tsb-storage"sv },
     { ENTOS_MEMORY_INTENSIVE_PERMISSION ""sv, "memory-intensive"sv },
+    { ENTOS_ICRYPTO_PERMISSION ""sv, "icrypto"sv },
 
 };
 
