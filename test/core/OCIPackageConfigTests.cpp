@@ -323,7 +323,7 @@ TEST(OCIPackageConfigTests, checkRuntimeConfigParsing)
 
         EXPECT_EQ(types[0].type, "html");
         ASSERT_TRUE(types[0].args.has_value());
-        const auto args = types[0].args->asObject();
+        const auto &args = types[0].args->asObject();
         EXPECT_EQ(args.at("userAgent").asString(), "RDK/WPE");
         EXPECT_EQ(args.at("debug").asBool(), true);
 

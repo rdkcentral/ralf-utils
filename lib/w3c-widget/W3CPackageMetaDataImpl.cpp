@@ -183,7 +183,7 @@ std::shared_ptr<W3CPackageMetaDataImpl> W3CPackageMetaDataImpl::fromConfigXml(co
     }
 
     // Build the m_supportedAppTypes, however in W3C widget packages this doesn't have an explicit equivalent with the
-    // OCI meta-data, but if a runtime type we can fake something reassuming a supported application type.
+    // OCI meta-data, but if a runtime type we can fake something resembling a supported application type.
     if ((impl->m_type == PackageType::Runtime) && !impl->m_runtimeType.empty())
     {
         SupportedApplicationType typeInfo;
