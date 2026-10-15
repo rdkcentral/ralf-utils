@@ -19,7 +19,7 @@ cmake_minimum_required(VERSION 3.12)
 cmake_policy(VERSION 3.12)
 
 project(ralf-utils
-        VERSION 1.2.0
+        VERSION 1.3.0
         LANGUAGES C CXX
         DESCRIPTION "Library and tool for unpacking and analysing widget and RALF package files")
 
