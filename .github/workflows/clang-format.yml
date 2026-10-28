@@ -61,7 +61,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install clang-format-15
+          sudo apt-get install clang-format
 
       # Run clang-format over all files
       - name: Run clang-format

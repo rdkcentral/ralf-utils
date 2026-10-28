@@ -54,7 +54,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install cmake openssl libssl-dev libarchive-dev libxml2-dev clang-tidy-15 -y
+          sudo apt-get install cmake openssl libssl-dev libarchive-dev libxml2-dev clang-tidy -y
 
       # Run cmake and then run the clang-tidy over the code
       - name: run cmake
