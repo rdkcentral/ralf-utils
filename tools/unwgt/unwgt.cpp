@@ -446,7 +446,7 @@ static bool extractPackage(const Package &package, const std::set<std::filesyste
                            const std::filesystem::path &outputDir)
 {
     int outputDirFd = open(outputDir.c_str(), O_CLOEXEC | O_DIRECTORY);
-    if (!outputDirFd)
+    if (outputDirFd < 0)
     {
         fprintf(stderr, "Error: failed to open output directory '%s' - %m\n", outputDir.c_str());
         return false;
@@ -584,7 +584,7 @@ static bool dumpMetadata(const Package &package, MetaDataDumpFormat format)
     const auto packageFormat = package.format();
     if ((packageFormat != Package::Format::Widget) && (packageFormat != Package::Format::Ralf))
     {
-        fprintf(stderr, "Error: unknown or unsupported package format (%d)\n", int(packageFormat));
+        fprintf(stderr, "Error: unknown or unsupported package format (%d)\n", static_cast<int>(packageFormat));
         return false;
     }
 
@@ -629,7 +629,7 @@ static bool dumpMetadata(const Package &package, MetaDataDumpFormat format)
         }
         else
         {
-            fprintf(stderr, "Error: unknown metadata dump format %d\n", int(format));
+            fprintf(stderr, "Error: unknown metadata dump format %d\n", static_cast<int>(format));
             return false;
         }
     }
