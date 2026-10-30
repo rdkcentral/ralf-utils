@@ -25,6 +25,9 @@
 #include <gtest/gtest.h>
 
 #include <map>
+#include <set>
+
+#include <sys/stat.h>
 
 #include <fcntl.h>
 #if defined(__linux__)
@@ -77,15 +80,25 @@ protected:
     }
 #endif
 
-    static std::set<std::filesystem::path> getAllBlockDevices()
+    static dev_t getDeviceNumber(const std::filesystem::path &path)
     {
-        std::set<std::filesystem::path> blockDevices;
+        struct stat buf = {};
+        if (stat(path.c_str(), &buf) != 0)
+            return 0;
+        return buf.st_rdev;
+    }
+
+    // Returns one path per unique block device (major:minor), as /dev can contain multiple nodes for the same device
+    static std::map<dev_t, std::filesystem::path> getAllBlockDevices()
+    {
+        std::map<dev_t, std::filesystem::path> blockDevices;
 
         const auto devDir = std::filesystem::path("/dev");
         for (const auto &entry : std::filesystem::directory_iterator(devDir))
         {
-            if (std::filesystem::is_block_file(entry.path()))
-                blockDevices.insert(entry.path());
+            struct stat buf = {};
+            if ((stat(entry.path().c_str(), &buf) == 0) && S_ISBLK(buf.st_mode))
+                blockDevices.emplace(buf.st_rdev, entry.path());
         }
 
         return blockDevices;
@@ -145,14 +158,15 @@ TEST_F(MountTests, testIsMountedCheck)
     {
         auto mountedBlockDevice = *mountedBlockDevices.begin();
 
-        // Find a different block device
+        // Find a different block device, by device number rather than path
+        const dev_t mountedDeviceNumber = getDeviceNumber(mountedBlockDevice.first);
         auto differentBlockDevice = std::find_if(blockDevices.begin(), blockDevices.end(),
-                                                 [&mountedBlockDevice](const std::filesystem::path &device)
-                                                 { return device != mountedBlockDevice.first; });
+                                                 [mountedDeviceNumber](const auto &device)
+                                                 { return device.first != mountedDeviceNumber; });
         ASSERT_NE(differentBlockDevice, blockDevices.end());
 
         // Create a DmVerityMount with mismatched block devices
-        DmVerityMount mount(*differentBlockDevice, mountedBlockDevice.second, "testVolume", "testUuid");
+        DmVerityMount mount(differentBlockDevice->second, mountedBlockDevice.second, "testVolume", "testUuid");
         EXPECT_FALSE(mount.isMounted());
 
         EXPECT_CALL(*MockMount::get(), umount2(StrEq(mountedBlockDevice.second.c_str()), UMOUNT_NOFOLLOW))

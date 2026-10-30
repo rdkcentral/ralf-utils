@@ -33,6 +33,19 @@
 static std::map<std::filesystem::path, std::weak_ptr<MockFile>> g_mockedFiles;
 static std::map<int, std::weak_ptr<MockOpenFile>> g_mockedOpenFiles;
 
+// On macOS the interposed libc functions can be called by dyld / libSystem
+// before the static maps above have been constructed.  This flag is only set
+// once they have, and the fakes fall through to the real functions until then.
+// The interposed functions can be called before the ASan runtime is
+// initialised, so they (and their helpers) must not be instrumented.
+#define NO_ASAN __attribute__((no_sanitize("address")))
+
+static bool g_mocksReady = false;
+static const struct MocksReadySetter
+{
+    MocksReadySetter() { g_mocksReady = true; }
+} g_mocksReadySetter;
+
 // -------------------------------------------------------------------------
 /*!
     Registers a new MockFile instance for the given file path. If an
@@ -58,8 +71,11 @@ void MockFile::clearAllMocks()
     g_mockedOpenFiles.clear();
 }
 
-static std::shared_ptr<MockOpenFile> getMockedOpenFile(int fd)
+NO_ASAN static std::shared_ptr<MockOpenFile> getMockedOpenFile(int fd)
 {
+    if (!g_mocksReady)
+        return nullptr;
+
     auto it = g_mockedOpenFiles.find(fd);
     if (it != g_mockedOpenFiles.end())
     {
@@ -109,7 +125,7 @@ static int createMockFd()
 
 // NOLINTBEGIN(readability-inconsistent-declaration-parameter-name)
 
-int doOpenAt(int dirfd, const char *path, int flags, mode_t mode)
+NO_ASAN int doOpenAt(int dirfd, const char *path, int flags, mode_t mode)
 {
     auto it = g_mockedFiles.find(path);
     if (it != g_mockedFiles.end())
@@ -326,8 +342,11 @@ static int createMockFd()
     return fd;
 }
 
-int doOpenAt(int dirfd, const char *path, int flags, mode_t mode)
+NO_ASAN int doOpenAt(int dirfd, const char *path, int flags, mode_t mode)
 {
+    if (!g_mocksReady)
+        return openat(dirfd, path, flags, mode);
+
     auto it = g_mockedFiles.find(path);
     if (it != g_mockedFiles.end())
     {
@@ -356,8 +375,11 @@ int doOpenAt(int dirfd, const char *path, int flags, mode_t mode)
     return openat(dirfd, path, flags, mode);
 }
 
-extern "C" int FakeStat(const char *file, struct stat *buf)
+extern "C" NO_ASAN int FakeStat(const char *file, struct stat *buf)
 {
+    if (!g_mocksReady)
+        return stat(file, buf);
+
     auto it = g_mockedFiles.find(file);
     if (it != g_mockedFiles.end())
     {
@@ -376,7 +398,7 @@ extern "C" int FakeStat(const char *file, struct stat *buf)
 }
 DYLD_INTERPOSE(FakeStat, stat);
 
-extern "C" int FakeOpen(const char *path, int flags, ...)
+extern "C" NO_ASAN int FakeOpen(const char *path, int flags, ...)
 {
     mode_t mode = 0;
     if (flags & O_CREAT)
@@ -391,7 +413,7 @@ extern "C" int FakeOpen(const char *path, int flags, ...)
 }
 DYLD_INTERPOSE(FakeOpen, open);
 
-extern "C" int FakeOpenAt(int dirfd, const char *path, int flags, ...)
+extern "C" NO_ASAN int FakeOpenAt(int dirfd, const char *path, int flags, ...)
 {
     mode_t mode = 0;
     if (flags & O_CREAT)
@@ -406,8 +428,11 @@ extern "C" int FakeOpenAt(int dirfd, const char *path, int flags, ...)
 }
 DYLD_INTERPOSE(FakeOpenAt, openat);
 
-extern "C" int FakeClose(int fd)
+extern "C" NO_ASAN int FakeClose(int fd)
 {
+    if (!g_mocksReady)
+        return close(fd);
+
     auto it = g_mockedOpenFiles.find(fd);
     if (it != g_mockedOpenFiles.end())
     {
@@ -422,8 +447,17 @@ extern "C" int FakeClose(int fd)
 }
 DYLD_INTERPOSE(FakeClose, close);
 
-extern "C" int FakeIoctl(int fd, unsigned long int request, ...)
+extern "C" NO_ASAN int FakeIoctl(int fd, unsigned long int request, ...)
 {
+    if (!g_mocksReady)
+    {
+        va_list ap;
+        va_start(ap, request);
+        int ret = ioctl(fd, request, va_arg(ap, void *));
+        va_end(ap);
+        return ret;
+    }
+
     void *arg;
     va_list ap;
     va_start(ap, request);
@@ -442,8 +476,11 @@ extern "C" int FakeIoctl(int fd, unsigned long int request, ...)
 }
 DYLD_INTERPOSE(FakeIoctl, ioctl)
 
-extern "C" int FakeFStat(int fd, struct stat *buf)
+extern "C" NO_ASAN int FakeFStat(int fd, struct stat *buf)
 {
+    if (!g_mocksReady)
+        return fstat(fd, buf);
+
     auto mockOpenFile = getMockedOpenFile(fd);
     if (mockOpenFile)
     {
@@ -456,8 +493,11 @@ extern "C" int FakeFStat(int fd, struct stat *buf)
 }
 DYLD_INTERPOSE(FakeFStat, fstat)
 
-extern "C" ssize_t FakeRead(int fd, void *buf, size_t n)
+extern "C" NO_ASAN ssize_t FakeRead(int fd, void *buf, size_t n)
 {
+    if (!g_mocksReady)
+        return read(fd, buf, n);
+
     auto mockOpenFile = getMockedOpenFile(fd);
     if (mockOpenFile)
     {
@@ -470,8 +510,11 @@ extern "C" ssize_t FakeRead(int fd, void *buf, size_t n)
 }
 DYLD_INTERPOSE(FakeRead, read)
 
-extern "C" ssize_t FakeWrite(int fd, const void *buf, size_t n)
+extern "C" NO_ASAN ssize_t FakeWrite(int fd, const void *buf, size_t n)
 {
+    if (!g_mocksReady)
+        return write(fd, buf, n);
+
     auto mockOpenFile = getMockedOpenFile(fd);
     if (mockOpenFile)
     {
@@ -484,8 +527,11 @@ extern "C" ssize_t FakeWrite(int fd, const void *buf, size_t n)
 }
 DYLD_INTERPOSE(FakeWrite, write)
 
-extern "C" ssize_t FakePRead(int fd, void *buf, size_t n, off_t offset)
+extern "C" NO_ASAN ssize_t FakePRead(int fd, void *buf, size_t n, off_t offset)
 {
+    if (!g_mocksReady)
+        return pread(fd, buf, n, offset);
+
     auto mockOpenFile = getMockedOpenFile(fd);
     if (mockOpenFile)
     {
@@ -498,8 +544,11 @@ extern "C" ssize_t FakePRead(int fd, void *buf, size_t n, off_t offset)
 }
 DYLD_INTERPOSE(FakePRead, pread)
 
-extern "C" ssize_t FakePWrite(int fd, const void *buf, size_t n, off_t offset)
+extern "C" NO_ASAN ssize_t FakePWrite(int fd, const void *buf, size_t n, off_t offset)
 {
+    if (!g_mocksReady)
+        return pwrite(fd, buf, n, offset);
+
     auto mockOpenFile = getMockedOpenFile(fd);
     if (mockOpenFile)
     {

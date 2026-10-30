@@ -409,6 +409,7 @@ public:
         EXPECT_CALL(*m_mockOpenCtrlDevice, close()).Times(1).WillOnce(Return(0));
     }
 
+    // NOLINTBEGIN(readability-identifier-naming)
     MOCK_METHOD(int, ioctl_DM_VERSION, (dm_ioctl * arg));
     MOCK_METHOD(int, ioctl_DM_LIST_DEVICES, (dm_ioctl * arg));
     MOCK_METHOD(int, ioctl_DM_DEV_CREATE, (dm_ioctl * arg));
@@ -417,6 +418,7 @@ public:
     MOCK_METHOD(int, ioctl_DM_DEV_REMOVE, (dm_ioctl * arg));
     MOCK_METHOD(int, ioctl_DM_DEV_STATUS, (dm_ioctl * arg));
     MOCK_METHOD(int, ioctl_DM_TABLE_STATUS, (dm_ioctl * arg));
+    // NOLINTEND(readability-identifier-naming)
 
 private:
     std::shared_ptr<MockFile> m_mockCtrlDevice;

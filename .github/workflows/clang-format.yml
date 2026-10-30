@@ -61,12 +61,12 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install clang-format-15
+          sudo apt-get install clang-format
 
       # Run clang-format over all files
       - name: Run clang-format
         run: |
-          find . -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -not -path './thirdparty/*' -exec clang-format-15 -style=file -n --Werror {} \; &> clang-format_errors.log
+          find . -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -not -path './thirdparty/*' -exec clang-format -style=file -n --Werror {} \; &> clang-format_errors.log
 
       # Process the clang-format errors and generate a junit xml file
       # Generate a failure if errors detected

@@ -27,6 +27,7 @@
 
 #include <functional>
 #include <memory>
+#include <vector>
 
 /// Some std::unique_ptr wrappers around libxml2 objects to manage their allocation and free
 using xmlDocUniquePtr = std::unique_ptr<xmlDoc, std::function<void(xmlDoc *_Nonnull)>>;

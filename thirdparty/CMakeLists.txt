@@ -16,7 +16,7 @@
 # limitations under the License.
 
 if (RALF_UTILS_USE_EXTERNAL_JSON)
-    find_package(nlohmann_json 3.11.3 REQUIRED)
+    find_package(nlohmann_json 3.12.0 REQUIRED)
 else()
     add_library(nlohmann_json INTERFACE)
     add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
